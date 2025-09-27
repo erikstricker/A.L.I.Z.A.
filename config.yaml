@@ -1,0 +1,12 @@
+credentials:
+  usernames:
+    admin:
+      name: Erik Stricker
+      password: $2b$12$t8jquDDa2YHutY.zpHHOD.tUCs.M7NENhL1gjxqvirx7qi4HmVebW
+    atkinsonlab:
+      name: Atkinson Lab User
+      password: $2b$12$AacEiN8WX4ypuvxwNQrSl.zQc5eCchfLCP4knQCH1CM7SFWvWMiSm
+cookie:
+  expiry_days: 30
+  key: ${COOKIE_KEY}
+  name: ${COOKIE_NAME}

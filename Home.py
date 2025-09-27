@@ -1,6 +1,11 @@
 import streamlit as st
+import streamlit_authenticator as stauth
+from dotenv import load_dotenv
 import os
 from ui_components import HomePageUI
+
+# Load environment variables from .env file
+load_dotenv()
 
 st.set_page_config(
     page_title="LLM Bootcamp Project",
