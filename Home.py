@@ -9,7 +9,7 @@ load_dotenv()
 
 import yaml
 from yaml.loader import SafeLoader
-with open('../config.yaml') as file:
+with open('./config.yaml') as file:
     config = yaml.load(file, Loader=SafeLoader)
 
 st.set_page_config(
@@ -19,20 +19,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-authenticator = Authenticate(
+authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
     config['cookie']['key'],
     config['cookie']['expiry_days']
 )
 
-# 1.RENDER THE LOGIN WIDGET
-authenticator.login('Login', 'main')
+# RENDER THE LOGIN WIDGET (UPDATED)
+authenticator.login()
 
-# 2. ADD LOGIC TO DISPLAY THE PAGE CONTENT OR MESSAGES
+# ADD LOGIC TO DISPLAY THE PAGE CONTENT OR MESSAGES
 if st.session_state["authentication_status"]:
     # Display content for logged-in users
-    authenticator.logout('Logout', 'sidebar') #  Add a logout button to the sidebar
+    authenticator.logout('Logout', 'sidebar')
     st.sidebar.title(f'Welcome *{st.session_state["name"]}*')
 
     # Apply centralized home page styling
