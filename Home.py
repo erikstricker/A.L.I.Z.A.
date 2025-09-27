@@ -62,8 +62,8 @@ if st.session_state["authentication_status"]:
         HomePageUI.render_feature_card(page_info["icon"], page_info["title"], page_info["description"])
 
 elif st.session_state["authentication_status"] is False:
-    # ---> Display message for incorrect credentials
+    # Display message for incorrect credentials
     st.error('Username/password is incorrect')
 elif st.session_state["authentication_status"] is None:
-    # ---> Display message for users who haven't logged in yet
+    # Display message for users who haven't logged in yet
     st.warning('Please enter your username and password')
