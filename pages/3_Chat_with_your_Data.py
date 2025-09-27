@@ -7,6 +7,9 @@ Features automatic document processing, vector search, and contextual responses.
 
 import streamlit as st
 from typing import List, Dict, Any
+import streamlit_authenticator as stauth  # Added for authentication
+import yaml  # Added for authentication
+from yaml.loader import SafeLoader  # Added for authentication
 
 from ui_components import ChatbotUI, APIKeyUI
 from langchain_helpers import RAGHelper, ValidationHelper
@@ -277,6 +280,27 @@ def main() -> None:
     Orchestrates document upload, processing, and intelligent
     question-answering workflow with enhanced UI styling.
     """
+    # Use centralized UI setup
+    ChatbotUI.setup_page("AI Chat", "🚀")
+    
+    # --- ADDED FOR AUTHENTICATION ---
+    with open('./config.yaml') as file:
+        config_data = yaml.load(file, Loader=SafeLoader)
+
+    authenticator = stauth.Authenticate(
+        config_data['credentials'],
+        config_data['cookie']['name'],
+        config_data['cookie']['key'],
+        config_data['cookie']['expiry_days']
+    )
+
+    if not st.session_state.get("authentication_status"):
+        st.warning("Please log in to access this page.")
+        st.stop()
+
+    authenticator.logout('Logout', 'sidebar')
+    st.sidebar.title(f'Welcome *{st.session_state["name"]}*')
+    # --- END OF AUTHENTICATION BLOCK ---
     setup_page()
     
     # Page title - centered with enhanced styling

@@ -6,6 +6,9 @@ and reliable message processing.
 """
 
 import streamlit as st
+import streamlit_authenticator as stauth  # Added for authentication
+import yaml  # Added for authentication
+from yaml.loader import SafeLoader  # Added for authentication
 from typing import Dict, Any, List
 
 from ui_components import ChatbotUI, APIKeyUI
@@ -24,12 +27,10 @@ def configure_api_key() -> bool:
     api_key = st.session_state.get("basic_openai_key", "")
     
     if not api_key:
-        # Check if we just connected (avoid showing form again)
         if st.session_state.get("basic_api_key_connected", False):
             st.session_state["basic_api_key_connected"] = False
             return True
         
-        # Use centralized API key form
         inputs = APIKeyUI.render_api_key_form(
             title="🔑 Enter API Key",
             inputs=[{
@@ -65,6 +66,7 @@ def main() -> None:
     """Main application function.
     
     Orchestrates the entire chatbot page including:
+    - Authentication checks
     - Page setup and styling
     - API key configuration
     - Chat interface and message processing
@@ -72,6 +74,26 @@ def main() -> None:
     """
     # Use centralized UI setup
     ChatbotUI.setup_page("AI Chat", "🚀")
+    
+    # --- ADDED FOR AUTHENTICATION ---
+    with open('./config.yaml') as file:
+        config_data = yaml.load(file, Loader=SafeLoader)
+
+    authenticator = stauth.Authenticate(
+        config_data['credentials'],
+        config_data['cookie']['name'],
+        config_data['cookie']['key'],
+        config_data['cookie']['expiry_days']
+    )
+
+    if not st.session_state.get("authentication_status"):
+        st.warning("Please log in to access this page.")
+        st.stop()
+
+    authenticator.logout('Logout', 'sidebar')
+    st.sidebar.title(f'Welcome *{st.session_state["name"]}*')
+    # --- END OF AUTHENTICATION BLOCK ---
+    
     
     # Use centralized header component
     ChatbotUI.render_page_header(
@@ -94,7 +116,7 @@ def main() -> None:
         
         # Ensure chain is properly initialized with current API key
         if api_key and ("basic_chain" not in st.session_state or 
-                       st.session_state.get("basic_current_api_key") != api_key):
+                        st.session_state.get("basic_current_api_key") != api_key):
             st.session_state.basic_chain = BasicChatbotHelper.build_chain(config, api_key)
             st.session_state.basic_current_api_key = api_key
         elif not api_key:
