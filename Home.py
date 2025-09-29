@@ -23,7 +23,7 @@ authenticator = stauth.Authenticate(
 )
 
 # --- MAIN PAGE CONTENT ---
-st.title("🤖 Welcome to A.L.I.Z.A.* 🤖")
+st.title("👧 Welcome to A.L.I.Z.A.* 🤖")
 st.markdown("This is the Atkinson lab AI chatbot, which let's chat with BCM wikis, lab 101s, and more.")
 
 
