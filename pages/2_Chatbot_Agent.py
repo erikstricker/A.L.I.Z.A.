@@ -113,12 +113,22 @@ class ChatbotTools:
         Manages the complete agent workflow including message processing,
         web search integration, and streaming response handling.
         """
+        # --- MODEL SELECTION WIDGET ---
+        # Add a model selector to the sidebar
+        st.sidebar.title("⚙️ Model Settings")
+        selected_model = st.sidebar.selectbox(
+            "Choose a model",
+            ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"],
+            key="agent_selected_model" # Use a unique key
+        )
+        # --- END OF MODEL SELECTION ---
+
         # Initialize agent-specific conversation history
         if "agent_messages" not in st.session_state:
             st.session_state.agent_messages = []
             
-        # Configure agent with web search capabilities
-        agent = self.setup_agent()
+        # Configure agent with web search capabilities, passing in the selected model
+        agent = self.setup_agent(model_name=selected_model) # Pass the model here
         
         # Render current conversation with search context
         self.display_messages()

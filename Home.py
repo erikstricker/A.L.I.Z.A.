@@ -22,6 +22,11 @@ authenticator = stauth.Authenticate(
     config['cookie']['expiry_days']
 )
 
+# --- MAIN PAGE CONTENT ---
+st.title("🤖 Welcome to A.L.I.Z.A.* 🤖")
+st.markdown("This is the Atkinson lab AI chatbot, which let's chat with BCM wikis, lab 101s, and more.")
+
+
 # --- LOGIN WIDGET ---
 # The login widget is rendered in the main body of the page.
 authenticator.login()
@@ -33,10 +38,9 @@ if st.session_state["authentication_status"]:
     st.sidebar.title(f'Welcome *{st.session_state["name"]}*')
 
     # --- MAIN PAGE CONTENT ---
-    st.title("Welcome to the LLM Bootcamp Project! 👋")
-    st.markdown("This is the central hub for all available AI assistants. Please select a feature from the list below or from the sidebar to get started.")
+    st.title("A.L.I.Z.A. is ready for you!")
 
-    st.markdown("### Available AI Assistants:")
+    st.markdown("### Available AI Assistants include:")
 
     # Example of how you can display your pages/features
     st.info("Navigate to the protected pages using the sidebar on the left.")
@@ -46,3 +50,5 @@ elif st.session_state["authentication_status"] is False:
     st.error('Username/password is incorrect')
 elif st.session_state["authentication_status"] is None:
     st.warning('Please enter your username and password to access the application.')
+
+st.markdown("*ELIZA was one of the first natural language processing chatbots developed from 1964 to 1967 by Joseph Weizenbaum at MIT.")
