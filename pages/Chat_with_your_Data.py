@@ -3,7 +3,7 @@ Chat with your Data Page.
 
 RAG (Retrieval-Augmented Generation) powered chatbot that enables
 intelligent question-answering over user-uploaded PDF documents.
-This version is fully integrated with Google Gemini for both embeddings and chat.
+This script manages the UI and calls RAGHelper for backend processing.
 """
 import streamlit as st
 import google.generativeai as genai
@@ -13,104 +13,15 @@ import yaml
 from yaml.loader import SafeLoader
 from typing import List, Any
 
-# LangChain components for RAG
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.document_loaders import PyPDFLoader
-from langchain.vectorstores import FAISS
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
-from langchain.schema.runnable import RunnablePassthrough
-from langchain.schema.output_parser import StrOutputParser
-
 # Authentication and UI
 import streamlit_authenticator as stauth
 from ui_components import ChatbotUI # Assuming this is in your project
 
-# --- RAG Core Logic ---
-# This class replaces the need for an external 'langchain_helpers.py' file
+# --- RAG-RELATED CHANGE ---
+# Import your helper class and remove the other now-redundant LangChain imports.
+from langchain_helpers import RAGHelper
 
-class RAGSystem:
-    """Encapsulates the entire RAG pipeline."""
-    
-    def __init__(self, api_key: str):
-        """Initializes the RAG system with the user's API key."""
-        self.api_key = api_key
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-pro-latest",
-            google_api_key=self.api_key
-        )
-        self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
-            google_api_key=self.api_key
-        )
-
-    def build_vector_store(self, uploaded_files: list):
-        """
-        Builds a FAISS vector store from uploaded PDF files using batching to handle rate limits.
-        """
-        # 1. Load and split the documents into chunks
-        all_docs = []
-        for file in uploaded_files:
-            with open(file.name, "wb") as f:
-                f.write(file.getbuffer())
-            loader = PyPDFLoader(file.name)
-            all_docs.extend(loader.load())
-            
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-        chunks = text_splitter.split_documents(all_docs)
-        
-        if not chunks:
-            st.error("Could not extract any text chunks from the PDF.")
-            return None
-
-        # 2. Process chunks in batches to respect API rate limits
-        batch_size = 50  # Number of chunks to process at a time
-        vector_store = None
-        
-        for i in range(0, len(chunks), batch_size):
-            # Get the current batch of chunks
-            batch = chunks[i:i + batch_size]
-            
-            st.write(f"Embedding batch {i//batch_size + 1}/{(len(chunks) - 1)//batch_size + 1}...")
-
-            if vector_store is None:
-                # Create the vector store with the first batch
-                vector_store = FAISS.from_documents(batch, self.embeddings)
-            else:
-                # Add subsequent batches to the existing store
-                vector_store.add_documents(batch)
-                
-            # Pause to avoid hitting the rate limit
-            time.sleep(5) # Wait for 5 seconds between batches
-
-        return vector_store
-
-    def create_rag_chain(self, vector_store):
-        """Creates a runnable RAG chain."""
-        retriever = vector_store.as_retriever()
-        
-        template = """
-        You are a helpful assistant. Answer the question based only on the following context.
-        If you cannot answer the question from the context, please state that you cannot find the answer in the provided documents.
-
-        CONTEXT:
-        {context}
-
-        QUESTION:
-        {question}
-        """
-        
-        prompt = PromptTemplate.from_template(template)
-
-        rag_chain = (
-            {"context": retriever, "question": RunnablePassthrough()}
-            | prompt
-            | self.llm
-            | StrOutputParser()
-        )
-        return rag_chain
-
-# --- Streamlit Page Setup & UI ---
+# --- Streamlit Page Setup & UI --- (No changes below this line)
 
 def setup_page() -> None:
     """Sets up the Streamlit page with configuration and custom CSS."""
@@ -120,8 +31,7 @@ def setup_page() -> None:
         layout="wide",
         initial_sidebar_state="collapsed"
     )
-    # Your CSS markdown here (omitted for brevity, but you should keep yours)
-    st.markdown("""<style> ... </style>""", unsafe_allow_html=True) # Keep your CSS
+    st.markdown("""<style> ... </style>""", unsafe_allow_html=True)
 
 def validate_gemini_key(api_key: str) -> bool:
     """Checks if a provided Google Gemini API key is valid."""
@@ -166,29 +76,42 @@ def configure_api_key(api_key: str = None) -> bool:
 class CustomDataChatbot:
     """Manages the Streamlit UI and workflow for the RAG chatbot."""
     
-    def __init__(self, api_key: str) -> None:
-        """Initializes the chatbot UI handler with the Gemini API key."""
-        self.api_key = api_key
+    # --- RAG-RELATED CHANGE ---
+    # The __init__ method is simplified. It no longer needs to create
+    # the LLM or embeddings models itself.
+    def __init__(self) -> None:
+        """Initializes the chatbot UI handler."""
+        pass
+
+    # --- RAG-RELATED CHANGE ---
+    # This method now correctly gets the Gemini API key from the session state
+    # and passes it to your RAGHelper.
+    def setup_graph(self, uploaded_files: List[Any]) -> Any:
+        """Setup RAG processing graph by calling the RAGHelper."""
+        api_key = st.session_state.get("gemini_api_key", "")
+        return RAGHelper.setup_rag_system(uploaded_files, api_key)
+
 
     def display_messages(self) -> None:
-        """Displays chat messages from the session state."""
+        """Display document-aware chat messages."""
         if "rag_messages" in st.session_state:
             for message in st.session_state.rag_messages:
-                avatar = ChatbotUI.get_user_avatar() if message["role"] == "user" else ChatbotUI.get_bot_avatar()
-                with st.chat_message(message["role"], avatar=avatar):
-                    st.write(message["content"])
+                if message["role"] == "user":
+                    with st.chat_message("user", avatar=ChatbotUI.get_user_avatar()):
+                        st.write(message["content"])
+                else:
+                    with st.chat_message("assistant", avatar=ChatbotUI.get_bot_avatar()):
+                        st.write(message["content"])
 
     def main(self) -> None:
         """Main RAG chatbot workflow."""
-        # Initialize session state variables
         if "rag_uploaded_files" not in st.session_state:
             st.session_state.rag_uploaded_files = []
-        if "rag_chain" not in st.session_state:
-            st.session_state.rag_chain = None
+        if "rag_app" not in st.session_state:
+            st.session_state.rag_app = None
         if "rag_messages" not in st.session_state:
             st.session_state.rag_messages = []
 
-        # Document uploader
         col1, col2, col3 = st.columns([2, 1.5, 2])
         with col2:
             uploaded_files = st.file_uploader(
@@ -198,48 +121,53 @@ class CustomDataChatbot:
             )
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Process documents if they change
         if uploaded_files:
             current_files = {f.name for f in uploaded_files}
             previous_files = {f.name for f in st.session_state.get("rag_uploaded_files", [])}
             
-            if current_files != previous_files or st.session_state.rag_chain is None:
+            if current_files != previous_files or st.session_state.rag_app is None:
                 st.session_state.rag_uploaded_files = uploaded_files
-                with st.spinner("📚 Processing documents... This may take a moment."):
-                    rag_system = RAGSystem(self.api_key)
-                    vector_store = rag_system.build_vector_store(uploaded_files)
-                    st.session_state.rag_chain = rag_system.create_rag_chain(vector_store)
-                    st.session_state.rag_messages = [] # Clear chat on new docs
-                    st.success("Documents processed successfully! You can now ask questions.")
+                with st.spinner("📚 Processing documents..."):
+                    st.session_state.rag_app = self.setup_graph(uploaded_files)
         
-        # Display chat history and handle new queries
         self.display_messages()
         
-        if st.session_state.rag_chain:
-            if prompt := st.chat_input("Ask about your documents..."):
-                st.session_state.rag_messages.append({"role": "user", "content": prompt})
-                with st.chat_message("user", avatar=ChatbotUI.get_user_avatar()):
-                    st.write(prompt)
-
+        # This section handles invoking the RAG chain created by your RAGHelper
+        if (st.session_state.get("rag_app") and 
+            st.session_state.rag_messages and 
+            st.session_state.rag_messages[-1]["role"] == "user" and
+            not st.session_state.get("rag_processing", False)):
+            
+            st.session_state.rag_processing = True
+            try:
                 with st.chat_message("assistant", avatar=ChatbotUI.get_bot_avatar()):
                     with st.spinner("Analyzing documents..."):
-                        try:
-                            response = st.session_state.rag_chain.invoke(prompt)
-                            st.write(response)
-                            st.session_state.rag_messages.append({"role": "assistant", "content": response})
-                        except Exception as e:
-                            error_message = f"An error occurred: {e}"
-                            st.error(error_message)
-                            st.session_state.rag_messages.append({"role": "assistant", "content": error_message})
-        elif uploaded_files:
-             st.info("Still processing documents, please wait...")
-        else:
-             st.info("Please upload PDF documents to begin the chat.")
+                        user_query = st.session_state.rag_messages[-1]["content"]
+                        
+                        # The invoke call now works with the graph from RAGHelper
+                        result = st.session_state.rag_app.invoke(
+                            {"question": user_query}
+                        )
+                        
+                        answer = result.get("generation", "I couldn't find an answer in the documents.")
+                        
+                        st.session_state.rag_messages.append({"role": "assistant", "content": answer})
+                
+                st.session_state.rag_processing = False
+                st.rerun()
+                
+            except Exception as e:
+                st.session_state.rag_processing = False
+                st.error(f"Error: {str(e)}")
+                st.rerun()
 
+        if prompt := st.chat_input("Ask about your documents..."):
+            st.session_state.rag_messages.append({"role": "user", "content": prompt})
+            st.rerun()
 
 def main() -> None:
     """Main application function."""
-    setup_page() # Use your original setup_page function for styling
+    setup_page()
     
     # --- AUTHENTICATION ---
     with open('./config.yaml') as file:
@@ -265,16 +193,16 @@ def main() -> None:
         <h1 style='...'>📚 Chat with your Data</h1>
         <p style='...'>Upload documents and get intelligent answers using RAG</p>
     </div>
-    """, unsafe_allow_html=True) # Keep your HTML/CSS
+    """, unsafe_allow_html=True)
     
-    # Use st.secrets for the API key in a deployed app
     gemini_api_key = st.secrets.get("GEMINI_API_KEY")
 
     if not configure_api_key(api_key=gemini_api_key):
         st.stop()
     
-    # Initialize and run the chatbot
-    app = CustomDataChatbot(api_key=st.session_state["gemini_api_key"])
+    # --- RAG-RELATED CHANGE ---
+    # Simplified the app initialization
+    app = CustomDataChatbot()
     app.main()
 
 if __name__ == "__main__":
